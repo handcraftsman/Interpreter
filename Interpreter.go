@@ -87,7 +87,9 @@ func (in *Interpreter) Run(startingBlockName string, startAt int) {
 				i = -1
 			case Jump:
 				jumpInstr := instr.(JumpRelativeInstruction)
-				i = i - 1 + jumpInstr.GetNextStepNumber()
+				if jumpInstr.CheckCondition() {
+					i = i - 1 + jumpInstr.GetNextStepNumber()
+				}
 			case Split:
 				splitInstr := instr.(SplitRelativeInstruction)
 				other := NewInterpreter(in.program)

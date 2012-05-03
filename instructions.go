@@ -19,6 +19,7 @@ type DataInstruction interface {
 type CallInstruction interface {
 	Instruction
 	GetBlockName() string
+	GetArgs() CallArgs
 }
 
 // moves execution to the requested step in the current block
@@ -26,7 +27,6 @@ type JumpRelativeInstruction interface {
 	Instruction
 	// zero based
 	GetNextStepNumber() int
-	CheckCondition() bool
 }
 
 // splits execution. One branch continues from the current
@@ -34,7 +34,5 @@ type JumpRelativeInstruction interface {
 // started with start point being the current block at
 // the requested step
 type SplitRelativeInstruction interface {
-	Instruction
-	// zero based
-	GetNextStepNumber() int
+	JumpRelativeInstruction
 }

@@ -34,13 +34,10 @@ e.g.
 	in := interpreter.NewInterpreter(program).
 		WithMaxSteps(1000)
 	
-run the interpreteter by passing in the name of the starting block and index of first instruction to run in that block
+run the interpreteter by passing in the name of the starting block, its args, and the index of first instruction to run in that block
 
-	in.Run("main", 0)
+	in.Run("main", nil, 0)
 
-## Sample uses
-
-- lawnmower problem solver. See  [related blog post](http://handcraftsman.wordpress.com/2012/04/29/lawnmower-problem-solver/)
 	
 ## License		
 

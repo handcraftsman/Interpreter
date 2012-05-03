@@ -53,49 +53,48 @@ func (in *Interpreter) WithMissingBlockHandler(missingBlockHandler func(blockNam
 	return in
 }
 
-func (in *Interpreter) Run(startingBlockName string, startAt int) {
-	in.pushState(startingBlockName, startAt)
+func (in *Interpreter) Run(startingBlockName string, args CallArgs, startAt int) {
+	instructions := in.getNamedBlock(startingBlockName, args)
+	in.pushState(startingBlockName, instructions, startAt)
 
 	for {
-		blockName, index := in.popState()
-		instructions := in.getNamedBlock(blockName)
+		block := in.popState()
 		for {
-			if len(blockName) == 0 {
+			if block.instructions == nil {
 				return
 			}
-			if instructions == nil {
-				return
-			}
-			if index < len(*instructions) {
+			if block.index < len(*block.instructions) {
 				break
 			}
-			blockName, index = in.popState()
-			instructions = in.getNamedBlock(blockName)
+			block = in.popState()
 		}
 
-		for i := index; i < len(*instructions) && !in.haltExecution(); i, in.stepCount = i+1, in.stepCount+1 {
-			instr := (*instructions)[i]
+		blockName := block.name
+		instructions := *block.instructions
+		index := block.index
+
+		for i := index; i < len(instructions) && !in.haltExecution(); i, in.stepCount = i+1, in.stepCount+1 {
+			instr := instructions[i]
 			switch instr.GetType() {
 			case Data:
 				dataInstr := instr.(DataInstruction)
 				dataInstr.Execute()
 			case Call:
 				callInstr := instr.(CallInstruction)
-				in.pushState(blockName, i+1)
+				in.pushState(blockName, &instructions, i+1)
 				blockName = callInstr.GetBlockName()
-				instructions = in.getNamedBlock(blockName)
+				args = callInstr.GetArgs()
+				instructions = *in.getNamedBlock(blockName, args)
 				i = -1
 			case Jump:
 				jumpInstr := instr.(JumpRelativeInstruction)
-				if jumpInstr.CheckCondition() {
-					i = i - 1 + jumpInstr.GetNextStepNumber()
-				}
+				i = i - 1 + jumpInstr.GetNextStepNumber()
 			case Split:
 				splitInstr := instr.(SplitRelativeInstruction)
 				other := NewInterpreter(in.program)
 				other.missingBlockHandler = in.missingBlockHandler
 				other.haltExecution = in.haltExecution
-				go other.Run(blockName, i-1+splitInstr.GetNextStepNumber())
+				go other.Run(blockName, args, i-1+splitInstr.GetNextStepNumber())
 			default:
 				panic(fmt.Sprint("don't know how to handle instruction type '", instr.GetType(), "'"))
 			}
@@ -103,22 +102,22 @@ func (in *Interpreter) Run(startingBlockName string, startAt int) {
 	}
 }
 
-func (in *Interpreter) pushState(blockName string, index int) {
-	in.stack = append(in.stack, blockIndex{name: blockName, index: index})
+func (in *Interpreter) pushState(name string, instructions *[]Instruction, index int) {
+	in.stack = append(in.stack, blockIndex{name: name, instructions: instructions, index: index})
 }
 
-func (in *Interpreter) popState() (string, int) {
+func (in *Interpreter) popState() blockIndex {
 	if len(in.stack) == 0 {
-		return "", 0
+		return *new(blockIndex)
 	}
 	block := in.stack[len(in.stack)-1]
 	in.stack = in.stack[:len(in.stack)-1]
 
-	return block.name, block.index
+	return block
 }
 
-func (in *Interpreter) getNamedBlock(blockName string) *[]Instruction {
-	instructions := in.program.GetBlock(blockName)
+func (in *Interpreter) getNamedBlock(blockName string, args CallArgs) *[]Instruction {
+	instructions := in.program.GetBlock(blockName, args)
 	if instructions == nil {
 		return in.missingBlockHandler(blockName)
 	}
@@ -126,6 +125,7 @@ func (in *Interpreter) getNamedBlock(blockName string) *[]Instruction {
 }
 
 type blockIndex struct {
-	name  string
-	index int
+	name         string
+	instructions *[]Instruction
+	index        int
 }

@@ -81,7 +81,8 @@ func (in *Interpreter) Run(startingBlockName string, args CallArgs, startAt int)
 				dataInstr.Execute()
 			case Call:
 				callInstr := instr.(CallInstruction)
-				in.pushState(blockName, &instructions, i+1)
+				temp := instructions
+				in.pushState(blockName, &temp, i+1)
 				blockName = callInstr.GetBlockName()
 				args = callInstr.GetArgs()
 				instructions = *in.getNamedBlock(blockName, args)
